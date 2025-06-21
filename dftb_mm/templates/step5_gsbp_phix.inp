@@ -1,0 +1,130 @@
+* Alkaline Phosphate 
+* ROB 6.20.2022
+* STEP 5 = GSBP SETUP PT 4 - compute phi(x)
+*
+
+bomblev -2
+
+!===============================================================================
+!                          USER VARAIBLES
+!===============================================================================
+set topparstream = /projectnb/cui-buchem/rosadche/dnap/qm_mm/toppar.str
+
+set pdbfile = SEDPDB
+set protein = SEDPROT
+set mg      = SEDMG
+set state   = SEDSTATE
+
+set sim     = gsbp_setup_pt4_phix
+set this = @pdbfile_@protein_@{mg}mg_@state_@sim
+
+if @sim .eq. gsbp_setup_pt4_phix then 
+    set last = gsbp_setup_pt1
+endif
+
+set lastpsf = @pdbfile_@protein_@{mg}mg_@state_@last
+set lastcor = @pdbfile_@protein_@{mg}mg_@state_@last
+
+!===============================================================================
+!                         TOPOLGY & PARAMETERS
+!===============================================================================
+stream @topparstream
+
+
+!===============================================================================
+!                         LOAD THE STRUCTURE(S)
+!===============================================================================
+open read unit 10 card name @psfdir/@lastpsf.psf
+read psf  unit 10 card
+
+open read unit 10 card name @cordir/@lastcor.cor
+read coor unit 10 card
+
+
+!===============================================================================
+!                            SET UP SYSTEM
+!===============================================================================
+!-------SET UP DROPLET VARIABLES -----------------------------------------------
+set xcen = 0.0
+set ycen = 0.0
+set zcen = 0.0
+
+
+!-------SET UP GSBP VARIABLES -----------------------------------------------
+
+set 1 23.0    ! radius for fully mobile region
+set 2 27.0    ! radius of inner region
+set 3 25.0    ! radius of buffer region where Langevin dynamics will be used
+
+set Dcel_c  =   1.2     ! Size of Grid Unit Cell (Coarse)
+set LEdge_c =   10.0     ! distance between a protein atom and edge of grid
+
+set Dcel_f  =   0.4     ! Size of Grid Unit Cell (Fine)
+set LEdge_f =   2.0     ! Distance b/w edge of focus region & grid
+
+coor stat
+calc xave = ( ?xmax + ?xmin ) / 2.0
+calc yave = ( ?ymax + ?ymin ) / 2.0
+calc zave = ( ?zmax + ?zmin ) / 2.0
+
+
+!-------------------------------------------------------------------------------
+! The following calcs will determine the grid spacing for the pbeq solver.
+!-------------------------------------------------------------------------------
+!-------------- COARSE GRID ----------------------------------------------------
+calc Nclx_c = int ( ( @{LEdge_c} * 4.0 + ?Xmax - ?Xmin ) / @{Dcel_c} )
+calc Ncly_c = int ( ( @{LEdge_c} * 4.0 + ?Ymax - ?Ymin ) / @{Dcel_c} )
+calc Nclz_c = int ( ( @{LEdge_c} * 4.0 + ?Zmax - ?Zmin ) / @{Dcel_c} )
+
+if @{Nclx_c} .gt. @{Ncly_c} then
+    set Ncl_c_greatest = @{Nclx_c}
+else 
+    set Ncl_c_greatest = @{Ncly_c}
+endif
+
+if @{Ncl_c_greatest} .lt. @{Nclz_c} then
+    set Ncl_c_greatest = @{Nclz_c}
+endif
+
+!-------------- FINE GRID ------------------------------------------------------
+! The fine grid only matters for focused region so with spherical GSBP this is 
+! the spherical inner region. In this case we make it only for diameter of sphere
+! including a edge distance on both sides
+
+calc Nclx_f = int ( 2.0 * ( @{LEdge_f} + @2 ) / @{Dcel_f} )
+set Ncl_f_greatest = @{Nclx_f}
+
+! If one were to ever use GSBP with inner region as rectangle, one would add an
+! edge cutoff to each X, Y, and Z smaller iner rectangular box lengths
+
+
+!-------------- GRID CHECK -----------------------------------------------------
+! the LBOX LNCEL must be smaller or equal to NCEL of inner region
+if @{Ncl_c_greatest} .gt. @{Ncl_f_greatest} then
+    set Ncl_c_greatest = @{Ncl_f_greatest}
+endif
+
+
+!-------------------------------------------------------------------------------
+!         DO THE GSBP PHI(X) CALCULATION
+!-------------------------------------------------------------------------------
+
+PBEQ
+
+PRNLEV 0
+scalar wmain set 0.0
+stream @gsbpdir/radius.str
+PRNLEV 5
+
+GSBP G_io  SPHERE -
+     MAXITS 200000 -
+     SRDIST @2 RRXCEN @xcen RRYCEN @ycen RRZCEN @zcen -
+     EPSW 80.0 EPSP 1.0 NCEL @{Ncl_f_greatest} DCEL @{Dcel_f} INTBP -
+     XBCEN @xcen YBCEN @ycen ZBCEN @zcen - ! Center of basis functions
+     LBOX FOCUS LNCEL @{Ncl_c_greatest} LDCEL @{Dcel_c} LXBCEN @xave LYBCEN @yave LZBCEN @zave
+
+open write file unit 50 name @gsbpdir/@this.dat
+write PHIX unit 50
+close unit 50
+
+END

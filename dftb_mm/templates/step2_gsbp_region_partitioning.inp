@@ -1,0 +1,119 @@
+* Alkaline Phosphate 
+* ROB 6.20.2022
+* STEP 2 = GSBP SETUP PT 1 - Partions atoms into inner, buffer, outer regions
+* You will need B-factors in WMAIN later for step_3
+* If you used CHARMM-GUI, there are no B-factors included so use the pdb to 
+* get the B factors using the mda_copy_Bfactors.py script BEFORE PROCEDING HERE
+* It does require fancy re-naming atoms and careful system specific atom 
+* selections and even maybe manual renumbering
+* BUT IT DOES WORK WITH USER INPUT!!!!
+*
+
+bomblev -2
+
+!===============================================================================
+!                          USER VARAIBLES
+!===============================================================================
+set topparstream = /projectnb/cui-buchem/rosadche/dnap/qm_mm/toppar.str
+
+set pdbfile = SEDPDB
+set protein = SEDPROT
+set mg      = SEDMG
+set state   = SEDSTATE
+
+set sim     = gsbp_setup_pt1
+set this = @pdbfile_@protein_@{mg}mg_@state_@sim
+
+if @sim .eq. gsbp_setup_pt1 then 
+    set last = setup
+endif
+
+set lastpsf = @pdbfile_@protein_@{mg}mg_@state_@last
+set lastcor = @pdbfile_@protein_@{mg}mg_@state_@last
+
+!===============================================================================
+!                         TOPOLGY & PARAMETERS
+!===============================================================================
+stream @topparstream
+
+
+!===============================================================================
+!                         LOAD THE STRUCTURE(S)
+!===============================================================================
+open read unit 10 card name @psfdir/@lastpsf.psf
+read psf  unit 10 card
+
+open read unit 10 card name @cordir/@lastcor.cor
+read coor unit 10 card
+
+
+!===============================================================================
+!                            SET UP SYSTEM
+!===============================================================================
+!-------SET UP DROPLET VARIABLES -----------------------------------------------
+set xcen = 0.0
+set ycen = 0.0
+set zcen = 0.0
+
+!-------SET UP GSBP VARIABLES -----------------------------------------------
+set 1 23.0    ! radius for fully mobile region
+set 2 27.0    ! radius of inner region
+set 3 25.0    ! radius of buffer region where Langevin dynamics will be used
+
+scalar xcomp set 0.0
+scalar ycomp set 0.0
+scalar zcomp set 0.0
+scalar wcomp set 0.0
+
+!INNER, MOBILE REGION = residues with at least one atom within 23-A and
+!   with no main chain atoms outside of 25-A 
+scalar xcomp set 1.0 -
+        sele  ( .byres. ( point @xcen @ycen @zcen cut @1 ) ) -
+        .and. .not. ( ( type C  .or. type O  .or. type N .or. - 
+                        type CA .or. type HA .or. type HN) -
+        .and. .not. ( point @xcen @ycen @zcen cut @3 ) ) end
+scalar xcomp store 1
+
+!INITIAL BUFFER REGION =  residues with at least one atom within 27-A, but not 
+!   already included in the inner, mobile region
+scalar ycomp set 1.0 sele ( .byres. ( point @xcen @ycen @zcen cut @2 ) ) -
+        .and. .not. recall 1 end
+scalar ycomp store 2
+
+!PROTEIN LANGEVIN ATOMS = all atoms, except hydrogens and waters in buffer region
+scalar zcomp set 1.0 sele recall 2 .and. .not. -
+        ( hydrogen .or. lone .or. resname tip3 ) end
+scalar zcomp store 3
+
+!OUTER REGION ATOMS = any atom not in the inner or buffer regions
+scalar wcomp set 1.0 sele .not. (recall 1 .or. recall 2 ) end
+scalar wcomp store 4
+
+
+!===============================================================================
+!                  WRITE OUT NEW ALTERED STRUCTURE
+!===============================================================================
+open write card unit 1 name @psfDIR/@this.psf
+write psf card unit 1
+close unit 1
+
+open write card unit 1 name @corDIR/@this.cor
+write coor card unit 1
+
+open unit 1 write form name @gsbpdir/@this.reg
+write coor card comp unit 1
+* @this, center of sphere @xcen @ycen @zcen
+* column 1: reaction region @1 A by residue partioning
+* column 2: Buffer region atoms, any atoms (byres) within @2 A but
+*           not in column 1 plus all main chain atoms outside @3 A  
+* column 3: Protein Langenvin atoms (same as col. 2 but no H or tip3).
+* column 4: Outer region atoms
+*  
+
+!===============================================================================
+!                            END SCRIPT
+!===============================================================================
+stop
+
+
+

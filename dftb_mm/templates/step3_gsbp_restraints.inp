@@ -1,0 +1,161 @@
+* Alkaline Phosphate 
+* ROB 6.20.2022
+* STEP 3 = GSBP SETUP PT 2 - sets up constraints for Langevin dynamics
+* NOTE: if using charmm-gui to setup initially, need to alter the COR file
+* to make sure WMAIN stil has crystallographic B-factors
+*
+
+bomblev -2
+
+!===============================================================================
+!                          USER VARAIBLES
+!===============================================================================
+set topparstream = /projectnb/cui-buchem/rosadche/dnap/qm_mm/toppar.str
+
+set pdbfile = SEDPDB
+set protein = SEDPROT
+set mg      = SEDMG
+set state   = SEDSTATE
+
+set sim     = gsbp_setup_pt2
+set this = @pdbfile_@protein_@{mg}mg_@state_@sim
+
+if @sim .eq. gsbp_setup_pt2 then 
+    set last = gsbp_setup_pt1
+endif
+
+set lastpsf = @pdbfile_@protein_@{mg}mg_@state_@last
+set lastcor = @pdbfile_@protein_@{mg}mg_@state_@last
+
+!===============================================================================
+!                         TOPOLGY & PARAMETERS
+!===============================================================================
+stream @topparstream
+
+
+!===============================================================================
+!                         LOAD THE STRUCTURE(S)
+!===============================================================================
+open read unit 10 card name @psfdir/@lastpsf.psf
+read psf  unit 10 card
+
+open read unit 10 card name @cordir/@lastcor.cor
+read coor unit 10 card
+
+! for the inner, buffer, outer partitioning from STEP 2 = GSBP PT 1
+open read unit 1 card name @gsbpdir/@lastcor.reg
+read coor comp unit 1 card
+
+!===============================================================================
+!                            SET UP SYSTEM
+!===============================================================================
+!-------SET UP DROPLET VARIABLES -----------------------------------------------
+set xcen = 0.0
+set ycen = 0.0
+set zcen = 0.0
+
+
+!-------SET UP GSBP VARIABLES -----------------------------------------------
+set temp 300.0
+
+! atoms beyond 23A will be held fixed, so only need to add constraints to 
+! buffer region atoms within that cutoff
+set 1 23.0    ! radius for fully mobile region
+set 2 27.0    ! radius of inner region
+set 3 25.0    ! radius of buffer region where Langevin dynamics will be used
+
+! Setting various boundary flags
+scalar xcomp store 1    ! initial md region
+scalar ycomp store 2    ! initial buffer region
+scalar zcomp store 3    ! initial Langevin atoms-proteins only
+scalar wcomp store 4    ! reservoir region atoms
+
+
+!-------------------------------------------------------------------------------
+! Convert crystallographic thermal factors in wmain to constraint forces
+! NOTE: THIS IS WHERE THE CHARMM-GUI SETUP COULD CAUSE ISSUES. CHECK YOUR WORK!
+!-------------------------------------------------------------------------------
+scalar wmain reci sele recall 3 end               ! get 1/B
+scalar wmain mult 0.001987191 sele recall 3 end   ! k(boltz)/B
+scalar wmain mult @temp sele recall 3 end            ! kT/B
+scalar wmain mult 4.0 sele recall 3 end           ! 4kT/B
+scalar wmain mult 9.87 sele recall 3 end          ! 4(pi**2)kT/B
+scalar wmain set 0.0 sele .not. recall 3 end      ! zero out the rest
+scalar wmain store 5
+
+scalar xcomp set 0.0 sele all end
+scalar ycomp set 0.0 sele all end
+scalar zcomp set 0.0 sele all end
+scalar wcomp set 0.0 sele all end
+
+scalar xcomp recall 3                    ! langevin region constraint flags
+scalar zcomp set 1.0 sele recall 3 .or. type OH2 end
+scalar zcomp mult 80.0 sele recall 3 end                     ! protein friction
+scalar zcomp mult 80.0 sele (resn TIP3 .and. type OH2) end   ! TIP3 friction
+scalar ycomp recall 5                    ! unscaled constraint force constants
+scalar wcomp recall 1
+
+open unit 15 write form name @gsbpdir/@this.cnu
+write coor comp card unit 15
+* @this, center @xcen @ycen @zcen
+* col. 1: langevin region constraint flags
+* col. 2: UNSCALED langevin region harmonic constraint forces
+* col. 3: langevin friction coefficients.
+* col. 4: MD region flags.
+
+
+!-------------------------------------------------------------------------------
+! Setup Langevin Force Constants
+!-------------------------------------------------------------------------------
+! ****** Scale the constraints based on where the atoms are ****** 
+! Values of S(r) for scaling the constraint forces
+
+set 4 0.00 !inner langevin region
+set 5 0.08 !next
+set 6 0.20 !next
+set 7 0.32 !next
+set 8 0.44 !next
+set 8b 0.50 !next
+
+!force constant scaling, this has hard-coded the distances
+!be sure to alter this if you need to, doesn't adjust with inner, buffer cutoffs
+scalar xcomp store 1
+scalar ycomp mult @4 sele ( recall 1 .and. point @xcen @ycen @zcen cut 23.0 ) end
+scalar ycomp mult @5 sele ( recall 1 .and. point @xcen @ycen @zcen cut 23.5 -
+                            .and. .not. point @xcen @ycen @zcen cut 23.0 ) end
+scalar ycomp mult @6 sele ( recall 1 .and. point @xcen @ycen @zcen cut 24.0 -
+                            .and. .not. point @xcen @ycen @zcen cut 23.5 ) end
+scalar ycomp mult @7 sele ( recall 1 .and. point @xcen @ycen @zcen cut 24.5 -
+                            .and. .not. point @xcen @ycen @zcen cut 24.0 ) end
+scalar ycomp mult @8 sele ( recall 1 .and. point @xcen @ycen @zcen cut 25.0 -
+                            .and. .not. point @xcen @ycen @zcen cut 24.5 ) end
+scalar ycomp mult @8b sele ( recall 1 .and. .not. point @xcen @ycen @zcen cut 25.0 ) end
+
+!friction scaling
+scalar zcomp mult @4 sele (recall 1 .and. point @xcen @ycen @zcen cut 23.0 -
+       .and. .not. resn TIP3) end
+scalar zcomp mult @5 sele (recall 1 .and. point @xcen @ycen @zcen cut 23.5 -
+       .and. .not. (point @xcen @ycen @zcen cut 23.0 .or. resn TIP3)) end
+scalar zcomp mult @6 sele (recall 1 .and. point @xcen @ycen @zcen cut 24.0 -
+       .and. .not. (point @xcen @ycen @zcen cut 23.5 .or. resn TIP3)) end
+scalar zcomp mult @7 sele (recall 1 .and. point @xcen @ycen @zcen cut 24.5 -
+       .and. .not. (point @xcen @ycen @zcen cut 24.0 .or. resn TIP3)) end
+scalar zcomp mult @8 sele (recall 1 .and. point @xcen @ycen @zcen cut 25.0 -
+       .and. .not. (point @xcen @ycen @zcen cut 24.5 .or. resn TIP3)) end
+scalar zcomp mult @8b sele (recall 1 .and. .not. -
+       (point @xcen @ycen @zcen cut 25.0 .or. resn TIP3)) end
+
+open unit 14 write form name  @gsbpdir/@this.cns
+write coor comp card unit 14
+* @this, center @xcen @ycen @zcen
+* col. 1: langevin region constraint flags
+* col. 2: SCALED langevin region harmonic constraint forces
+* col. 3: SCALED langevin friction coefficients.
+* col. 4: MD region flags.
+*
+
+!===============================================================================
+!                            END SCRIPT
+!===============================================================================
+stop
+

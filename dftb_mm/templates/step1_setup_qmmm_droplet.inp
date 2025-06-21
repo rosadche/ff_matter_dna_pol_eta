@@ -1,0 +1,167 @@
+* SETUP DNAP
+* ROB 6.20.2022
+* STEP 1 = SETUP, sets up QM/MM structure & solvation
+*
+
+bomblev -5
+
+!===============================================================================
+!                          USER VARAIBLES
+!===============================================================================
+set topparstream = /projectnb/cui-buchem/rosadche/dnap/qm_mm/toppar.str
+
+set pdbfile = SEDPDB
+set protein = SEDPROT
+set mg      = SEDMG
+set state   = SEDSTATE
+
+set sim     = setup
+set this = @pdbfile_@protein_@{mg}mg_@state_@sim
+
+if @sim .eq. setup then 
+    set lastpsf = @pdbfile_@protein_@{mg}mg_@state_unsolvated
+    set lastcor = @pdbfile_@protein_@{mg}mg_@state_unsolvated_with_bfactors
+endif
+
+!===============================================================================
+!                         TOPOLGY & PARAMETERS
+!===============================================================================
+stream @topparstream
+
+
+!===============================================================================
+!                         LOAD THE STRUCTURE(S)
+!===============================================================================
+open read unit 10 card name @psfdir/@lastpsf.psf
+read psf  unit 10 card
+
+open read unit 10 card name @cordir/@lastcor.cor
+read coor unit 10 card
+
+
+!===============================================================================
+!                            SET UP NONBONDED
+!===============================================================================
+NBONDS  GROUP  SWITCH CDIE  VDW VSWI  EXTEND GRAD QUAD -
+        CUTNB 13.0  CTOFNB 12.0 CTONNB 8.0  WMIN 1.5  EPS 1.0 -
+        inbfrq -1
+
+
+!===============================================================================
+!                            SET UP SYSTEM
+!===============================================================================
+!-------SET UP DROPLET VARIABLES -----------------------------------------------
+set xcen = 0.0
+set ycen = 0.0
+set zcen = 0.0
+
+!----------RENAMING SEGID FOR CONVENIENCE --------------------------------------
+rename segid MGA sele segid HETA end
+rename segid MGB sele segid HETC end
+
+if @state .eq. rs then
+    rename segid LIG sele segid HETF end
+endif
+
+if @state .eq. ps then
+    rename segid LIG sele segid HETI end
+endif 
+
+if @mg .eq. 3 then
+    if @state .eq. rs then
+        rename segid MG3 sele segid HETZ end
+    endif
+    
+    if @state .eq. ps then
+        rename segid MG3 sele segid HETJ end
+    endif
+endif
+
+
+!-------CENTER PICKED ATOM on DROPLET CENTER ------------------------------
+set center  =   segid MGA
+coor orient sele all end
+coor stat mass sele @center end
+coor trans xdir -?XAVE ydir -?YAVE zdir -?ZAVE sele all end
+
+
+!-------SET UP DROPLET STRUCTURE------------------------------------------------
+! 25 A sphere of water centered at droplet center set up earlier
+set solvent = water_droplet_25
+
+open read unit 13 card name @psfdir/@solvent.psf
+read psf  unit 13 card append
+
+open read unit 13 card name @cordir/@solvent.cor
+read coor resid ignore unit 13 sele segid BWAT end
+
+coor stat mass sele segid BWAT end
+set xref = ?XAVE
+set yref = ?YAVE
+set zref = ?ZAVE
+coor trans xdir -?XAVE ydir -?YAVE zdir -?ZAVE sele segid BWAT end
+
+set deleteradius = 2.5
+delete atoms select .byres. ( (segid BWAT .and. type OH2) .and. -
+     ((.not. segid BWAT) .around. @deleteradius) ) end
+
+join BWAT renum
+
+!-------ADD QM/MM LINK ATOMS----------------------------------------------------
+! syntax is name of dummy atom, QM atom, MM atom
+
+!DNAB growing chain
+addl QQH1 DNAB 8 C4' DNAB 8 C5'
+
+! Aspartate 13
+addl QQH2 PROA 13 CB PROA 13 CA
+
+! Methionine 14 to Cystiene 16 Backbone
+addl QQH3 PROA 14 C  PROA 14 CA
+addl QQH4 PROA 15 CA PROA 15 CB
+addl QQH5 PROA 16 CA PROA 16 C
+addl QQH6 PROA 16 CA PROA 16 CB
+
+!Arginine 55
+addl QQH7 PROA 55 CB PROA 55 CA
+
+!Arginine 61
+addl QQH8 PROA 61 CB PROA 61 CA
+
+!Serine 113 
+addl QQH9 PROA 113 CB PROA 113 CA
+
+!Aspartate 115
+addl QQH10 PROA 115 CB PROA 115 CA
+
+!Glutumate 116
+addl QQH11 PROA 116 CB PROA 116 CA
+
+!Lysine 231
+addl QQH12 PROA 231 CB PROA 231 CA
+
+
+!===============================================================================
+!                  WRITE OUT NEW ALTERED STRUCTURE
+!===============================================================================
+open write card unit 1 name @psfDIR/@this.psf
+write psf card unit 1
+close unit 1
+
+open write card unit 1 name @pdbDIR/@this.pdb
+write coor pdb unit 1
+close unit 1
+
+open write card unit 1 name @corDIR/@this.cor
+write coor card unit 1
+
+
+!===============================================================================
+!                            END SCRIPT
+!===============================================================================
+stop
+
+
+
+
+

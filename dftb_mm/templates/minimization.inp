@@ -1,0 +1,260 @@
+* Alkaline Phosphate 
+* ROB 6.20.2022
+* STEP 6 = QM/MM Molecualr Dynamics Heating
+*
+
+bomblev -2
+prnlev   5
+
+!===============================================================================
+!                          USER VARAIBLES
+!===============================================================================
+set topparstream = /projectnb/cui-buchem/rosadche/dnap/qm_mm/toppar.str
+
+set pdbfile = SEDPDB
+set protein = SEDPROT
+set mg      = SEDMG
+set state   = SEDSTATE
+set sim     = minimized
+set this    = @pdbfile_@protein_@{mg}mg_@state_@sim
+
+if @sim .eq. minimized then 
+    set last = gsbp_setup_pt1
+endif
+
+set lastpsf = @pdbfile_@protein_@{mg}mg_@state_@last
+set lastcor = @pdbfile_@protein_@{mg}mg_@state_@last
+
+set qm_sele         = @pdbfile_@protein_@{mg}mg_@state_charmm_selections.str
+set sccdftb_wmain   = @pdbfile_@protein_@{mg}mg_@state_sccdftb_wmain.str
+
+set gsbp_regions    = @pdbfile_@protein_@{mg}mg_@state_gsbp_setup_pt2.cns
+set gsbp_nmpol      = 20
+set gsbp_mij        = @pdbfile_@protein_@{mg}mg_@state_gsbp_setup_pt3_mij_@{gsbp_nmpol}.dat
+set gsbp_phix       = @pdbfile_@protein_@{mg}mg_@state_gsbp_setup_pt4_phix.dat
+
+
+!===============================================================================
+!                         TOPOLGY & PARAMETERS
+!===============================================================================
+stream @topparstream
+
+
+!===============================================================================
+!                         LOAD THE STRUCTURE(S)
+!===============================================================================
+open read unit 10 card name @psfdir/@lastpsf.psf
+read psf  unit 10 card
+
+open read unit 10 card name @cordir/@lastcor.cor
+read coor unit 10 card
+
+
+!===============================================================================
+!                            SET UP NONBONDED
+!===============================================================================
+NBONDS  GROUP  SWITCH CDIE  VDW VSWI  EXTEND GRAD QUAD -
+        CUTNB 13.0  CTOFNB 12.0 CTONNB 8.0  WMIN 1.5  EPS 1.0 -
+        inbfrq -1
+
+
+!===============================================================================
+!                 SET UP BUFFER REGION & ASSOCIATED FORCES 
+!                        (from step 2 & 3)
+!===============================================================================
+! Read the gsbp details into COMP arrays so we have acess to them
+open read unit 3 card name @gsbpdir/@{gsbp_regions}
+read coor comp unit 3 card
+
+! Save the arrays in COMP set to other arrays so that we can have thesr arrays and
+! still use COMP for restraints
+scalar xcomp store 1
+scalar ycomp store 2
+scalar zcomp store 3
+
+! Read in the original structure again, but into COMP so that the harmonic 
+! restraint on atoms is with reference to the initial starting locations in COMP
+open read unit 3 card name @cordir/@lastcor.cor
+read coor comp unit 3 card
+
+!-------SET UP BUFFER REGION HARMONIC RESTRAINTS -------------------------------
+cons harmonic force 1.0 exponent 2 sele recall 1 end COMP
+scalar CONST recall 2
+
+!-------SET UP BUFFER REGION FRICTION ------------------------------------------
+scalar FBETA recall 3
+
+
+!===============================================================================
+!                            SET UP SYSTEM
+!===============================================================================
+!-------------------------------------------------------------------------------
+!               SET UP DROPLET VARIABLES
+!-------------------------------------------------------------------------------
+set xcen = 0.0
+set ycen = 0.0
+set zcen = 0.0
+
+set 1 = 23.0    ! radius for fully mobile region
+set 2 = 27.0    ! radius of inner region
+set 3 = 25.0    ! radius of buffer region where Langevin dynamics will be used
+
+set rsphere =   @2              ! radius of the spherical region of interest
+set rexcl   =   2.0             ! water exclusion radius
+set rgeo    =   5.0             ! to setup the MMFP potential
+
+calc rwater = @rsphere - @rexcl
+calc rdroff = @rsphere - @rgeo
+
+
+!-------------------------------------------------------------------------------
+!               SET UP OUTER REGION REQUIREMENTS
+!-------------------------------------------------------------------------------
+! find protein atoms which have 1-3 connections from atoms in outer region
+define INNER   sele POINT @xcen @ycen @zcen CUT @rsphere end
+define OUTER   sele .not. INNER end
+define BONDOR  sele OUTER .and. .bonded. INNER end
+define BONDIR1 sele INNER .and. .bonded. BONDOR end
+define BONDIR2 sele INNER .and. .bonded. BONDIR1 end
+define FIX13   sele .bygroup. ( BONDIR1 .or. BONDIR2 ) end
+
+!-----protein backbone selection------------------------------------------------
+define back sele (type C .or. type CA .or. type N -
+    .or. type O .or. type HN .or. type HA) end
+
+!-----find nonwater atoms near the boundary between r=rwater and r=rsphere -----
+define EXCLAT sele .bygroup. ( INNER .and. .not. -
+    ( POINT @xcen @ycen @zcen CUT @rwater ) .and. .not. resname tip3 ) end
+
+!-----find nonwater atoms near the boundary between r=rwater and r=rsphere------
+define frozen sele OUTER .or. ( INNER .and. ( EXCLAT .or. FIX13 )) end
+
+
+!-------REMOVE BARE COLUMBIC INTERATIONS BETWEEN INNER & OUTER REGION ----------
+! We don't need to consider the bare Coulombic interactions between IR and OR
+! because it is already incorporated into PHIX.
+!***** explict Coulombic interactions within the inner region must be kept *****
+scalar charge set 0.0 sele OUTER end
+
+
+!-------------------------------------------------------------------------------
+!               SET UP DROPLET MMFP RESTRAINT
+!-------------------------------------------------------------------------------
+! restrains all droplet water in the region, but also some other things
+! because if inner region atoms get to close to GSBP spherical boundary, 
+! there will be severe issues
+
+define dropletrestraint select (type OH2 .and. .not. frozen) .or. -
+    (segid PROA .and. .not. (back .or. frozen)) show end
+
+MMFP
+geo sphere -
+    xref @xcen yref @ycen zref @zcen xdir 1.0 ydir 1.0 zdir 1.0 -
+    quartic force 0.5 P1 2.25 droff @rdroff -
+    select dropletrestraint end
+END
+
+!-------------------------------------------------------------------------------
+!               SET UP QM REGION
+!-------------------------------------------------------------------------------
+stream @selectdir/@{qm_sele} 
+stream @selectdir/@{sccdftb_wmain}
+
+set qm_charge = SEDCHARGE
+
+sccdftb remove div sele qm_all end chrg @{qm_charge} -
+    D3RD HBON threebod -
+    temp 0.0 scft 1e-7 mixe 1 dmeth 2
+
+energy
+
+!-------------------------------------------------------------------------------
+!               SET UP FIRES MMFP RESTRAINT FOR QM WATER
+!-------------------------------------------------------------------------------
+MMFP
+  geo sphere harm RMAX force 100.0 -
+  select (fire_center) end -
+  select (fire_water .and. type OH2) end -
+  select (.not. fire_water .and. type OH2 .and. .not. frozen) end
+END
+
+
+!-------------------------------------------------------------------------------
+!               NOE RESTRAINTS
+!-------------------------------------------------------------------------------
+
+
+
+!-------------------------------------------------------------------------------
+!               SET UP GSBP
+!-------------------------------------------------------------------------------
+PBEQ
+
+open read file unit 50 name @gsbpdir/@{gsbp_mij}
+read MIJ unit 50
+close unit 50
+
+open read file unit 50 name @gsbpdir/@{gsbp_phix}
+read PHIX unit 50
+close unit 50
+
+GSBP sphere -
+     nmpol @{gsbp_nmpol} nosort  -
+     srdist @rsphere rrxcen @xcen rrycen @ycen rrzcen @zcen
+END
+
+
+!-------------------------------------------------------------------------------
+!               SET UP SHAKE
+!-------------------------------------------------------------------------------
+shake bonh
+
+
+!===============================================================================
+!                         MINIMIZE THE SYSTEM
+!===============================================================================
+
+!------ Always run energy before doing anything --------------------------------
+energy
+coor copy comp
+
+!------ Minimize the bulk water -----------------------------
+cons fix sele none end
+cons fix sele (all .and. .not. (type OH2 .and. .not. frozen)) end
+
+mini sd nstep 500 nprint 10 tolg 0.1
+
+!------ Minimize the QM region -----------------------------
+cons fix sele none end
+cons fix sele (all .and. .not. qm_all) end
+
+mini sd nstep 500 nprint 10 tolg 0.05
+
+
+!------Minimize the whole mobile inner region -----------------------------
+cons fix sele none end
+cons fix sele frozen end
+
+mini sd nstep 500 nprint 10 tolg 0.005
+
+
+!-------------------------------------------------------------------------------
+!               WRITE OUT MINIMIZED COORDINATES
+!-------------------------------------------------------------------------------
+! Always unfix atoms before writing out coordinates becasue it can & will 
+! carry over to future simulations when you may not want it to
+
+cons fix sele none end
+open write card unit 1 name @cordir/@this.cor
+write coor card unit 1
+
+
+!===============================================================================
+!                             END THE SCRIPT
+!===============================================================================
+stop
+
+
+
+
+
