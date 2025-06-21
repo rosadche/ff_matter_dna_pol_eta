@@ -1,0 +1,9 @@
+cv_1.in
+&colvar
+cv_type = 'DISTANCE'
+cv_ni = 2,
+cv_i = 7474, 7516
+anchor_position = -98.00000,2.00000,2.00000,102.00000
+anchor_strength = 250.0,250.0
+/
+
