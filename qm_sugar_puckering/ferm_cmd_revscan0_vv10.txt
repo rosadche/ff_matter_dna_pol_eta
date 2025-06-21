@@ -1,0 +1,9 @@
+*start::sys
+Basis				6-311++g(d,p)_reilly
+ECORR               XC_MGGA_C_REVSCAN
+EXC					XC_HYB_MGGA_X_REVSCAN0
+DISP_CORR			vv10
+convergence_scheme	dE+RMS[dP]
+CONVERGENCE_RMS_DP	1e-6
+CONVERGENCE_DE		1e-8
+*end

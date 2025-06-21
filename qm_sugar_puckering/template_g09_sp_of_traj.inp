@@ -1,0 +1,142 @@
+* MOLECULE PROTONATION G09 WHICHMETHOD single points of DFTB scans
+*
+
+! Reads a DFTB traj and uses Gaussian interface to do single points on those
+! structures. The method is determined the "G09CMD" file
+
+!===============================================================================
+!          SET DETAILS
+!===============================================================================
+set mol         = MOLECULE
+set case        = PROTONATION
+set corfile     = WHICHCORFILE
+set psffile     = WHICHPSFFILE
+set method      = WHICHMETHOD
+
+set basedir     = /projectnb/cui-buchem/rosadche/dnap/sugar_dft
+set inpdir      = INPUTDIR
+set outdir      = @basedir/@mol_@case_scans
+
+set toppar      = /projectnb/cui-buchem/rosadche/dnap/sugar_dft/ribet_neutral/toppar/
+
+!===============================================================================
+!           LOAD TOP & PARAM
+!===============================================================================
+stream toppar.str
+
+!===============================================================================
+!           LOAD PSF & COR
+!===============================================================================
+bomlev -5
+
+open unit 12 card read name @inpdir/@psffile
+read psf card unit 12
+close unit 12
+
+open unit 12 card read name @inpdir/@corfile
+read coor card unit 12
+close unit 12
+
+bomlev 0
+
+!===============================================================================
+!                            SET UP NONBONDED
+!===============================================================================
+! Extended electrostatics are incompatible with QM/MM
+NBONDS  SWITCH CDIE  VDW VSWI -
+        CUTNB 13.0  CTOFNB 12.0 CTONNB 8.0  WMIN 1.5  EPS 1.0 -
+        inbfrq -1
+
+
+!===============================================================================
+!           SETUP QM METHOD
+!===============================================================================
+set qm_charge = QMCHARGE
+
+define qm_all sele all end
+
+!-------------------------------------------------------------------------------
+! Needed enviromental variables
+! G09EXE, G09FCHK, G09CMD, G09PROFILE, G09INP, GAUSS_SCRDIR
+! -> I set GAUSS_SCRDIR in the submission scipt to take advantage of the SCC's 
+!    scratch directory for a specific job set by $TMPDIR
+!    This will be deleted when the job ends
+!-------------------------------------------------------------------------------
+! Paths to executables
+ENVI G09EXE         "/usr/local/apps/gaussian-16.C.01/bin/g16"
+ENVI G09FCHK        "/usr/local/apps/gaussian-16.C.01/bin/formchk"
+
+! Auxilary command file names
+! G09CMD: calcualtion instructions
+! G09PROFILE: typically empty file will do
+ENVI G09CMD         "G09CMDFILE"
+ENVI G09PROFILE     "G09CMDPROFILEVAL"
+
+! What to call the CHARMM-generated gaussian input files
+! This will show up in the directory CHARMM is run from, it will overwrite itself
+! every time you call energy or need forces
+ENVI G09INP         "G09INPUTFILE"
+ENVI GAUSS_SCRDIR   "G09SCRATCHDIRNAME"
+
+!-------------------------------------------------------------------------------
+gaus remove div noguess sele qm_all end
+
+energy
+
+
+!===============================================================================
+!          Select our atoms
+!===============================================================================
+set O4 = ATOM_O4
+set C1 = ATOM_C1
+set C2 = ATOM_C2
+set C3 = ATOM_C3
+set C4 = ATOM_C4
+
+
+!===============================================================================
+!          START THE SCAN
+!===============================================================================
+! turn prnlev below 3 to hide coor pck5 output
+!prnlev 2
+
+!-------------------------------------------------------------------------------
+! Setup the scan details
+!-------------------------------------------------------------------------------
+open write card unit 23 name ./@mol_@case_@method_spe.txt
+write title unit 23
+*zx, zy, phase, amp, energy
+*
+
+open unit 27 file read name ./@mol_@case_dftb_scan.dcd
+traj query unit 27
+set totframes = ?NFILE
+traj firstu 27 nunit 1
+
+!-----------start loop----------------------------------------------------------
+set i = 0
+label loop
+
+traj read
+energy
+set energywrite = ?ener
+
+coor pck5 @O4 @C1 @C2 @C3 @C4
+set ZX_VAL = ?ZX 
+set ZY_VAL = ?ZY
+set PH_VAL = ?PHASE
+set AM_VAL = ?AMP
+
+write title unit 23
+*@{ZX_VAL}, @{ZY_VAL}, @{PH_VAL}, @{AM_VAL}, @energywrite
+
+calc i = @i + 1
+if @i .lt. @totframes goto loop
+!-----------end loop------------------------------------------------------------
+
+
+
+
+
+
+

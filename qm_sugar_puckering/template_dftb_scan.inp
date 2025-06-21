@@ -1,0 +1,189 @@
+* MOLECULE PROTONATION DFTB scan
+*
+
+!===============================================================================
+!          SET DETAILS
+!===============================================================================
+set mol         = MOLECULE
+set case        = PROTONATION
+set corfile     = WHICHCORFILE
+set psffile     = WHICHPSFFILE
+
+set basedir     = /projectnb/cui-buchem/rosadche/dnap/sugar_dft
+set inpdir      = INPUTDIR
+set outdir      = @basedir/@mol_@case_scans
+
+set toppar      = /projectnb/cui-buchem/rosadche/dnap/sugar_dft/ribet_neutral/toppar/
+
+!===============================================================================
+!           LOAD TOP & PARAM
+!===============================================================================
+stream toppar.str
+
+!===============================================================================
+!           LOAD PSF & COR
+!===============================================================================
+bomlev -5
+
+open unit 12 card read name @inpdir/@psffile
+read psf card unit 12
+close unit 12
+
+open unit 12 card read name @inpdir/@corfile
+read coor card unit 12
+close unit 12
+
+bomlev -2
+
+!===============================================================================
+!                            SET UP NONBONDED
+!===============================================================================
+! Extended electrostatics are incompatible with QM/MM (like g09)
+NBONDS  SWITCH CDIE  VDW VSWI -
+        CUTNB 13.0  CTOFNB 12.0 CTONNB 8.0  WMIN 1.5  EPS 1.0 -
+        inbfrq -1
+
+
+!===============================================================================
+!           SETUP QM METHOD
+!===============================================================================
+set qm_charge = QMCHARGE
+
+define qm_all sele all end
+stream sccdftb_wmain.str
+
+sccdftb remove div sele qm_all end chrg @{qm_charge} -
+    D3RD HBON threebod -
+    temp 0.0 scft 1e-7 mixe 1 dmeth 2
+
+energy
+
+
+!===============================================================================
+!          Select our atoms
+!===============================================================================
+set O4 = ATOM_O4
+set C1 = ATOM_C1
+set C2 = ATOM_C2
+set C3 = ATOM_C3
+set C4 = ATOM_C4
+
+ALC_O3CONS
+
+RIBOSECONS
+
+HANDLECONS
+
+NUCLEOCONS
+
+!===============================================================================
+!          START THE SCAN
+!===============================================================================
+! turn prnlev below 3 to hide coor pck5 output
+prnlev 2
+
+!-------------------------------------------------------------------------------
+! Setup the scan details
+!-------------------------------------------------------------------------------
+! Turn the warning level down (below 2) to avoid linear dihedral/angle warnings
+wrnlev 1
+
+set ZX_MIN  = -60.0
+set ZX_MAX  =  60.0
+set ZX_icr  =   6.0
+set ZX_fc   =  10.0
+
+set ZY_MIN = -60.0
+set ZY_MAX =  60.0
+set ZY_icr =   6.0
+set ZY_fc  =  10.0
+
+calc ZX_tot    = (@{ZX_MAX} - @{ZX_MIN}) / @{ZX_icr} + 1
+calc ZY_tot    = (@{ZY_MAX} - @{ZY_MIN}) / @{ZY_icr} + 1
+calc totframes = @{ZX_tot} * @{ZY_tot}
+
+open write card unit 23 name ./@mol_@case_dftb_scan.txt
+write title unit 23
+*zx, zy, phase, amp, energy
+*
+
+open unit 27 file write name ./@mol_@case_dftb_scan.dcd
+traj iwrite 27 nwrite 1 nfile @totframes 
+
+
+!-------------------------------------------------------------------------------
+! DO a minimization at the starting values
+!-------------------------------------------------------------------------------
+cons pck5 ZXZY @O4 @C1 @C2 @C3 @C4 - 
+    kcon @{ZX_fc} @{ZY_fc} valu @{ZX_MIN} @{ZY_MIN} expo 2.0 2.0
+
+mini sd   nstep 2000 nprint 2000 tolg 0.1
+mini abnr nstep 5000 nprint 5000 tolg 0.01
+
+coor pck5 @O4 @C1 @C2 @C3 @C4
+set ZX_VAL = ?ZX 
+set ZY_VAL = ?ZY
+set PH_VAL = ?PHASE
+set AM_VAL = ?AMP
+
+! clear current 
+cons clp5
+
+shake bonh
+
+!-------------------------------------------------------------------------------
+! Do our scan
+!-------------------------------------------------------------------------------
+!-----------start outer loop----------------------------------------------------------          
+set i = 0
+label outerloop
+set j = 0
+
+!-----------start inner loop----------------------------------------------------------    
+label innerloop
+
+calc zx_current = @{ZX_MIN} + @{ZX_icr} * @i
+calc zy_current = @{ZY_MIN} + @{ZY_icr} * @j
+
+cons pck5 ZXZY @O4 @C1 @C2 @C3 @C4 - 
+    kcon @{ZX_fc} @{ZY_fc} valu @{zx_current} @{zy_current} expo 2.0 2.0
+
+mini sd   nstep 2000 nprint 2000 tolg 0.10 tole 0.010
+mini abnr nstep 5000 nprint 5000 tolg 0.01 tole 0.001
+traj write
+
+!Back up original location
+if @j .eq. 0 then
+    coor copy comp sele all end
+endif
+
+skip cpk5 dihe
+energy
+set energywrite = ?ener
+skip none
+cons clp5
+
+coor pck5 @O4 @C1 @C2 @C3 @C4
+set ZX_VAL = ?ZX 
+set ZY_VAL = ?ZY
+set PH_VAL = ?PHASE
+set AM_VAL = ?AMP
+
+write title unit 23
+*@{ZX_VAL}, @{ZY_VAL}, @{PH_VAL}, @{AM_VAL}, @energywrite
+
+calc j = @j + 1
+if @j .lt. @{ZY_tot} goto innerloop
+!-----------end inner loop----------------------------------------------------------    
+
+! Reset coordinates from "checkpoint"
+coor copy sele all end
+
+calc i = @i + 1
+if @i .lt. @{ZX_tot} goto outerloop
+!-----------end outer loop----------------------------------------------------------    
+
+
+
+
+
