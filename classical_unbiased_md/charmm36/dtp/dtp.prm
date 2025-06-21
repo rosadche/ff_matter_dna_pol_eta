@@ -1,0 +1,22 @@
+* Additional Para
+*
+
+BONDS
+FGA1 CN7B 420.00     1.3740 ! Borrowed from FLUROALK
+
+ANGLES
+HGA1     CG3C51   HGA1   35.5    109.00   5.40   1.802 ! based on HN8  CN8  HN8 
+FGA1 CN7B HN7 57.50    108.89    5.00   1.997 ! FLUROALK fluoroalkanes
+FGA1 CN7B CN7B 44.00    112.00   30.00   2.369 ! FLUROALK fluoroalkanes
+FGA1 CN7B CN7 44.00    112.00   30.00   2.369 ! FLUROALK fluoroalkanes
+
+DIHEDRALS
+FGA1 CN7B CN7  X  0.1850  3     0.00 ! FLUROALK fluoro_alkanes
+FGA1 CN7B CN7B X  0.1850  3     0.00 ! FLUROALK fluoro_alkanes
+FGA1 CN7B CN7  CN7  0.1850  3     0.00 ! FLUROALK fluoro_alkanes
+FGA1 CN7B CN7B ON6B 0.1850  3     0.00 ! FLUROALK fluoro_alkanes
+FGA1 CN7B CN7B HN7  0.1850  3     0.00 ! FLUROALK fluoro_alkanes
+FGA1 CN7B CN7B NN2  0.1850  3     0.00 ! FLUROALK fluoro_alkanes
+FGA1 CN7B CN7  HN7  0.1850  3     0.00 ! FLUROALK fluoro_alkanes
+FGA1 CN7B CN7  ON5  0.1850  3     0.00 ! FLUROALK fluoro_alkanes
+

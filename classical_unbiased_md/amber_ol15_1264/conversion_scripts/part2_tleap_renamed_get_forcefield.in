@@ -1,0 +1,25 @@
+# tleap -f part2_tleap_renamed_get_forcefield.in | tee > part2_tleap_renamed_get_forcefield.out
+
+# load the forcefields we want to use
+# make sure to include the frcmod.phospahte for "ATP"
+# make sure to include 12-6-4 ions 
+# load the off file which wil help parse residues from the PDB since everything
+# was already created nicely by CHARMMGUI and we don't have to restart
+# Then make periodic sicne this process removes our old box
+# 0.0 makes the box sides slightly larger than 105.0 but not by much
+# write out updated files
+
+source leaprc.protein.ff19SB
+source leaprc.water.tip4pew 
+source ./leaprc.DNA.OL15_phos_edit
+loadamberparams frcmod.ions234lm_1264_tip4pew
+loadAmberParams ./frcmod.phosphate
+
+x = loadOFF step3_input_renamed_to_dna.off
+y = loadPDB step3_input_renamed_to_dna.pdb
+
+setBox y centers 0.0
+
+saveAmberParm y step3_input_dna_rename.parm7 step3_input_dna_rename.rst7
+
+quit

@@ -1,0 +1,30 @@
+# parmed -n -i part4_parmed_m1264.in -p step3_sucessful_rename.parm7 -c step3_sucessful_rename.rst7 | tee > part4_parmed_m1264.out
+
+# Check the LJ at start
+# Add atom types so that we can use the m12-6-4 Mg parqamters 
+# Add 12-6-4 parameters
+# Check LJ to make sure they changed
+#===============================================================================
+setOverwrite True
+
+#===============================================================================
+printLJMatrix :MG #Print out the LJ matrix to check whether the adding C4 terms are right
+
+change AMBER_ATOM_TYPE :A*,DA*@N7 NAMG #Change atom type of Adenine N7 atom to NAMG
+change AMBER_ATOM_TYPE :G*,DG*@N7 NGMG #Change atom type of Adenine N7 atom to NGMG
+change AMBER_ATOM_TYPE :*@OP* OPMG #Change atom type of backbone phosphate oxygen to OPMG
+change AMBER_ATOM_TYPE :DTP@N7 NAMG 
+change AMBER_ATOM_TYPE :DTP@O1A,O2A,O1B,O2B OPMG
+change AMBER_ATOM_TYPE :DTP@O1G,O2G,O3G OPMG
+
+addLJType @%NAMG #Add a new LJ type for Adenine N7 atom
+addLJType @%NGMG #Add a new LJ type for Guanine N7 atom
+addLJType @%OPMG #Add a new LJ type for backbone phosphate oxygen
+
+add12_6_4 :MG watermodel TIP4PEW
+
+printLJMatrix :MG
+
+parmOut step3_m1264.parm7 step3_m1264.rst7
+
+quit

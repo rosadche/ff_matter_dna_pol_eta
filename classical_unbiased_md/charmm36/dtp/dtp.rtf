@@ -1,0 +1,148 @@
+* Topology file
+*
+
+RESI DTP            -4.00 ! Deoxy ATP - QC modified based on ATP
+                          !
+
+GROUP
+ATOM C4'  CG3C51    0.11  !                       H61  H62
+ATOM H4'  HGA1      0.09  !                         \  /
+ATOM O4'  OG3C51   -0.40  !                          N6
+ATOM C1'  CG3C51    0.11  !                          |
+ATOM H1'  HGA1      0.09  !                          C6
+GROUP                     !                        //  \
+ATOM C5   CG2RC0    0.28  !                        N1   C5--N7\\
+ATOM N7   NG2R50   -0.71  !                        |    ||     C8-H8
+ATOM C8   CG2R53    0.34  !                        C2   C4--N9/
+ATOM H8   HGR52     0.12  !                       / \\ /     \
+ATOM N9   NG2R51   -0.05  !                     H2   N3       \
+                          !                                    \
+ATOM N1   NG2R62   -0.74  !                                     \
+ATOM C2   CG2R64    0.50  !                                      \
+ATOM H2   HGR62     0.13  ! (-)O3G   O2B     O1A    H5' H4'  O4'  \
+ATOM N3   NG2R62   -0.75  !    |      |       |      |    \ /   \  \
+ATOM C4   CG2RC0    0.43  !O1G=PG-O3B-PB-O3A-PA-O5'-C5'---C4'    C1'
+ATOM C6   CG2R64    0.46  !    |      |       |      |     \     / \
+                          ! (-)O2G (-)O1B (-)O2A    H5''   C3'--C2' H1'
+ATOM N6   NG2S3    -0.77  !                               / \   / \
+ATOM H61  HGP4      0.38  !                            O3' H3' H2' H2''
+ATOM H62  HGP4      0.38  !                             |        
+GROUP                     !                            H3T        
+ATOM C2'  CG3C51   -0.18
+ATOM H2'' HGA1      0.09
+ATOM H2'  HGA1      0.09
+GROUP
+ATOM C3'  CG3C51    0.14
+ATOM H3'  HGA1      0.09
+ATOM O3'  OG311    -0.65
+ATOM H3T  HGP1      0.42
+GROUP
+ATOM C5'  CG321    -0.08
+ATOM H5'  HGA2      0.09
+ATOM H5'' HGA2      0.09
+ATOM O5'  OG303    -0.62
+ATOM PA   PG1       1.50
+ATOM O1A  OG2P1    -0.82
+ATOM O2A  OG2P1    -0.82
+ATOM O3A  OG304    -0.74
+ATOM PB   PG1       1.50
+ATOM O1B  OG2P1    -0.82
+ATOM O2B  OG2P1    -0.82
+ATOM O3B  OG304    -0.86 ! charge adjusted to yield total triP of -4.0
+ATOM PG   PG2       1.10
+ATOM O1G  OG2P1    -0.90
+ATOM O2G  OG2P1    -0.90
+ATOM O3G  OG2P1    -0.90
+
+BOND O5'  C5'       O5'  PA        PA   O1A       PA   O2A       PA   O3A
+BOND O3A  PB        PB   O1B       PB   O2B       PB   O3B       O3B  PG
+BOND PG   O1G       PG   O2G       PG   O3G
+BOND C5'  C4'       C4'  O4'       C4'  C3'       O4'  C1'
+BOND C1'  N9        C1'  C2'       N9   C4        N9   C8        C4   N3
+BOND C2   N1        C6   N6
+BOND N6   H61       N6   H62       C6   C5        C5   N7
+BOND C2'  C3'       C2'  H2'       C3'  O3'       O3'  H3T
+BOND C1'  H1'       C2'  H2''      C3'  H3'       C4'  H4'       C5'  H5'
+BOND C5'  H5''      C8   H8        C2   H2
+DOUBLE N1   C6    N3   C2    C4   C5        N7   C8
+IMPR C6 C5  N1  N6
+IMPR N6 H62 H61 C6
+DONO H61  N6
+DONO H62  N6
+ACCE N3
+ACCE N7
+ACCE N1
+ACCE O1A  PA
+ACCE O2A  PA
+ACCE O3'
+ACCE O4'
+ACCE O5'
+ACCE O3A
+ACCE O2B
+ACCE O1B
+ACCE O3B
+ACCE O3G
+ACCE O1G
+ACCE O2G
+IC PA   O3A  PB   O3B    0.0000  000.00  180.0   000.00   0.0000
+IC PB   O3A  PA   O5'    0.0000  000.00  120.0   000.00   0.0000
+IC O5'  O3A  *PA  O1A    0.0000  000.00  120.0   000.00   0.0000
+IC O5'  O3A  *PA  O2A    0.0000  000.00 -120.0   000.00   0.0000
+IC O3A  O3B  *PB  O1B    0.0000  000.00  120.0   000.00   0.0000
+IC O3A  O3B  *PB  O2B    0.0000  000.00 -120.0   000.00   0.0000
+IC O3A  PB   O3B  PG     0.0000  000.00  150.0   000.00   0.0000
+IC PB   O3B  PG   O1G    0.0000  000.00  150.0   000.00   0.0000
+IC O3B  O1G  *PG  O2G    0.0000  000.00  120.0   000.00   0.0000
+IC O3B  O1G  *PG  O3G    0.0000  000.00 -120.0   000.00   0.0000
+IC O3A  PA   O5'  C5'    0.0000  000.00  -30.0   000.00   0.0000
+!IC PA   O5'  C5'  C4'    1.5996  119.00 -151.39  110.04   1.5160 !Not-so-stable minimum
+IC PA   O5'  C5'  C4'    0.0000  000.00 -110.0   000.00   0.0000
+!IC O5'  C5'  C4'  C3'    1.4401  108.83 -179.85  116.10   1.5284 !Not-so-stable minimum
+IC O5'  C5'  C4'  C3'    0.0000  000.00   70.0   000.00   0.0000
+IC C5'  C4'  C3'  O3'    1.5160  116.10   76.70  115.12   1.4212
+IC H3T  O3'  C3'  C4'    0.9650  105.47   38.18  111.98   1.5386
+IC O4'  C3'  *C4' C5'    1.4572  104.06 -120.04  116.10   1.5160
+IC C2'  C4'  *C3' O3'    1.5284  100.16 -124.08  115.12   1.4212
+IC C4'  C3'  C2'  C1'    1.5284  100.16   39.58  102.04   1.5251
+!IC C3'  C2'  C1'  N9     1.5284  101.97  144.39  113.71   1.4896 !144.39 can't be right
+IC O4'  C2'  *C1' N9     0.0       0.0   120.0     0.0    0.0
+!IC O4'  C1'  N9   C4     1.5251  113.71  -96.00  125.97   1.3703 !clash after fixing N9
+IC O4'  C1'  N9   C4     0.0       0.0  -150.0     0.0    0.0
+IC C1'  C4   *N9  C8     1.4896  125.97 -179.94  106.0    1.367
+IC C4   N9   C8   N7     1.376   106.0     0.0   113.6    1.312
+IC C8   N9   C4   C5     1.367   106.0     0.0   105.6    1.382
+IC C8   N7   C5   C6     0.0       0.0   180.0     0.0    0.0
+IC N7   C5   C6   N1     0.0       0.0   180.0     0.0    0.0
+IC C5   C6   N1   C2     0.0       0.0     0.0     0.0    0.0
+IC N9   C5   *C4  N3     1.376   105.6  -180.0   126.9    1.342
+IC C5   N1   *C6  N6     1.409   117.6  -180.0   121.2    1.337
+IC N1   C6   N6   H61    1.337   121.2     0.0   119.0    1.01
+IC H61  C6   *N6  H62    1.01    119.0   180.0   119.00   1.01
+IC C5   N1   *C6  N6     1.409   117.6  -180.0   119.0    1.337
+IC N1   C6   N6   H61    1.337   119.0     0.0   119.0    1.01
+IC H61  C6   *N6  H62    1.01    119.0   180.0   121.00   1.01
+IC N9   N7   *C8   H8    0.0       0.0   180.0     0.0    0.0
+IC N1   N3   *C2   H2    0.0       0.0   180.0     0.0    0.0
+IC C1'  C3'  *C2' H2'    1.5284  102.04 -114.67  110.81   1.0
+IC O4'  C2'  *C1' H1'    0.0       0.0  -115.0     0.0    0.0
+IC C1'  C3'  *C2' H2''   0.0       0.0   115.0     0.0    0.0
+IC C2'  C4'  *C3' H3'    0.0       0.0   115.0     0.0    0.0
+IC C3'  O4'  *C4' H4'    0.0       0.0  -115.0     0.0    0.0
+IC C4'  O5'  *C5' H5'    0.0       0.0  -115.0     0.0    0.0
+IC C4'  O5'  *C5' H5''   0.0       0.0   115.0     0.0    0.0
+PATC  FIRS NONE LAST NONE
+
+PRES DEOF 1.50 !Convert 2'OH to Fluorine
+DELE ATOM O2'
+DELE ATOM H2'
+
+ATOM P P2 1.50 !Follow DEOX
+GROUP ! To correct O4' atom type in DNA (NF)
+ATOM C2'  CN7B    0.14
+ATOM H2'' HN7     0.09
+ATOM F2'  FGA1   -0.23
+
+BOND C2' F2'
+BILD C1'  C3'  *C2' F2' 0.0 0.0 -115.0 0.0 0.0
+
+

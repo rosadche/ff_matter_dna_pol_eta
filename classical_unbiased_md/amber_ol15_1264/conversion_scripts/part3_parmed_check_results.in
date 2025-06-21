@@ -1,0 +1,21 @@
+# parmed -n -i part3_parmed_check_results.in -p step3_input_dna_rename.parm7 -c step3_input_dna_rename.rst7 | tee > part3_parmed_check_results.out
+
+# Check the LJ & dihedrals to ensure the DNA forcefield & frcmod.phosphates was used
+# Add 12-6-4 parameters & ensure they worked
+#===============================================================================
+setOverwrite True
+
+#===============================================================================
+printLJMatrix :MG #Print out the LJ matrix to check whether the adding C4 terms are right
+
+printDihedrals :DTP@PA
+printDihedrals :DTP@PB
+printDihedrals :DTP@PG
+
+add12_6_4 :MG watermodel TIP4PEW
+printLJMatrix :MG #Print out the LJ matrix to check whether the adding C4 terms are right
+
+#checkValidity
+parmOut step3_sucessful_rename.parm7 step3_sucessful_rename.rst7
+
+quit

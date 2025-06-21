@@ -1,0 +1,56 @@
+# parmed -n -i part1_parmed_convert_FF_ligand_to_dna.in -p step3_input.parm7 -c step3_input.rst7 | tee > part1_parmed_convert_FF_ligand_to_dna.out
+# Check dihedrals & LJ
+# Change all the GAFF2 atoms
+# Check diehdral & LJ ansd see that they did not chage
+# We will write out files which will allow tleap to update forcefield paramters
+#===============================================================================
+setOverwrite True
+
+#===============================================================================
+printLJMatrix :MG #Print out the LJ matrix to check whether the adding C4 terms are right
+
+printDihedrals :DTP@PA
+printDihedrals :DTP@PB
+printDihedrals :DTP@PG
+
+#===============================================================================
+# This is whole atom type, not LJ type
+
+# Phoshpates Part (13 atoms)
+change AMBER_ATOM_TYPE :DTP@O1A,O2A,O1B,O2B O2  # Phosphate non-bridging non-terminal oxygens
+change AMBER_ATOM_TYPE :DTP@O1G,O2G,O3G O3       # Phosphate non-bridging terminal oxygens
+change AMBER_ATOM_TYPE :DTP@O3A,O3B,O5' OS      
+change AMBER_ATOM_TYPE :DTP@PA,PB,PG P           # Phosphate P atoms
+
+# Deoxyribose Sugar Part (15 atoms)
+change AMBER_ATOM_TYPE :DTP@H5',H5'',H3',H4' H1
+change AMBER_ATOM_TYPE :DTP@C5' CJ                
+change AMBER_ATOM_TYPE :DTP@C4',C2',C1' CT      
+change AMBER_ATOM_TYPE :DTP@H3T HO                
+change AMBER_ATOM_TYPE :DTP@O3' OH                 
+change AMBER_ATOM_TYPE :DTP@C3' C7                
+change AMBER_ATOM_TYPE :DTP@O4' OS               
+change AMBER_ATOM_TYPE :DTP@H2',H2'' HC          
+change AMBER_ATOM_TYPE :DTP@H1' H2               
+
+# Nucleobase Part (14 atoms)
+change AMBER_ATOM_TYPE :DTP@N9 N*                 
+change AMBER_ATOM_TYPE :DTP@C8 C2                
+change AMBER_ATOM_TYPE :DTP@C4,C5 CB             
+change AMBER_ATOM_TYPE :DTP@N7 NB                 
+change AMBER_ATOM_TYPE :DTP@N1,N3 NC            
+change AMBER_ATOM_TYPE :DTP@C2 CQ                
+change AMBER_ATOM_TYPE :DTP@C6 CA         
+change AMBER_ATOM_TYPE :DTP@N6 N2              
+change AMBER_ATOM_TYPE :DTP@H61,H62 H          
+change AMBER_ATOM_TYPE :DTP@H8,H2 H5            
+
+#===============================================================================
+checkValidity
+
+printDihedrals :DTP@PA
+printDihedrals :DTP@PB
+printDihedrals :DTP@PG
+
+writeOFF step3_input_renamed_to_dna.off
+outPDB step3_input_renamed_to_dna.pdb
