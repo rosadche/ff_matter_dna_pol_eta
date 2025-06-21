@@ -3,7 +3,7 @@ Repository to accompany the publication "Force Fields Matter in DNA Pol $\eta$ M
 
 ## Contents
 **classical_umbrella_sampling**: Files for both reactant state (RS) and product state (PS)
-- Restart file used at the start of umbrella sampling
+- Restart file used at the start of umbrella sampling (from the end of classical simualtion)
 - Example AMBER input file
 - Collective varibale (CV) definition files
 - Reweighting script
@@ -18,3 +18,9 @@ Repository to accompany the publication "Force Fields Matter in DNA Pol $\eta$ M
 **dftb_mm**: Scripts needed to setup and run DFTB/MM simualtions with Generalized Solvent Boundary Potential (GSBP) from classical CHARMM36 topology and coordinate files
 
 **qm_sugar_puckering**: Files needed to run DFTB/MM scans of model sugar systems and higher level single points
+
+## Notes:
+- This repository does not contain scripts obtained directly from third parties (such as CHARMM-GUI) and does not provide excecutables or source code for programs (e.g. CHARMM, FermiONs++, Guassian)
+
+## Citation:
+- To be updated
